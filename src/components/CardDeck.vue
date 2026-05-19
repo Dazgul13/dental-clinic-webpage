@@ -32,6 +32,7 @@
             <span class="deck-counter-sep"> / {{ String(cards.length).padStart(2, '0') }}</span>
           </div>
 
+          <!-- Desktop: scroll hint. Mobile: prev/next buttons -->
           <p class="deck-scroll-hint fade-up" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" width="13" height="13">
@@ -39,16 +40,41 @@
             </svg>
             Scroll to explore
           </p>
+
+          <div class="deck-mobile-controls fade-up" aria-label="Card navigation">
+            <button
+              class="deck-mobile-btn"
+              :disabled="activeStep === 0"
+              aria-label="Previous card"
+              @click="tryStep(activeStep - 1)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <button
+              class="deck-mobile-btn deck-mobile-btn--primary"
+              :disabled="activeStep === cards.length - 1"
+              aria-label="Next card"
+              @click="tryStep(activeStep + 1)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- RIGHT: card stack -->
         <div class="deck-right">
-          <div class="deck-slider" ref="sliderRef">
-            <!--
-              deckOrder[0]      = bottom of visual stack (most offset, lowest z)
-              deckOrder[last]   = top of visual stack    (no offset, highest z)
-              stackStyle(i) positions each card by its index in deckOrder
-            -->
+          <div
+            class="deck-slider"
+            ref="sliderRef"
+            @touchstart.passive="onTouchStart"
+            @touchend.passive="onTouchEnd"
+          >
             <div
               v-for="(card, i) in deckOrder"
               :key="card.id"
@@ -97,20 +123,20 @@ export default {
     const sliderRef  = ref(null)
     const activeStep = ref(0)
 
-    // deckOrder: index 0 = bottom of stack, last = top/front card
-    // We rotate this array — never remove elements — so Vue keeps all cards mounted
     const deckOrder = ref([...props.cards].reverse())
 
-    // Cooldown prevents double-firing from rapid scroll ticks
-    const COOLDOWN = 700   // ms — must be > animation duration (500ms)
+    const COOLDOWN  = 650
     let lockedUntil = 0
     let currentStep = 0
     let pinST       = null
 
-    // Each card's CSS position in the stack based on its index in deckOrder
+    // Touch tracking for swipe
+    let touchStartX = 0
+    let touchStartY = 0
+
     function stackStyle(i) {
       const total   = deckOrder.value.length
-      const fromTop = total - 1 - i   // 0 = top card
+      const fromTop = total - 1 - i
       const offset  = 18
       return {
         left:   `${fromTop * offset}px`,
@@ -119,34 +145,25 @@ export default {
       }
     }
 
-    // ── Scroll DOWN: top card flies off, next card rises ───────
     function goForward(toStep) {
       const slider = sliderRef.value
       if (!slider) return
-
-      // The top card is the last DOM child (highest z-index)
       const topCard = slider.lastElementChild
       if (!topCard) return
 
       currentStep      = toStep
       activeStep.value = toStep
 
-      // 1. Fly the current top card off screen
       gsap.to(topCard, {
-        duration: 0.45,
+        duration: 0.4,
         x: -60,
         y: 40,
         opacity: 0,
         ease: 'expo.in',
         onComplete() {
-          // 2. Reset its transform so it looks normal when it's at the bottom
           gsap.set(topCard, { clearProps: 'x,y,opacity' })
-
-          // 3. Rotate deckOrder: move last item to front (it becomes the new bottom)
           const arr = deckOrder.value
           deckOrder.value = [arr[arr.length - 1], ...arr.slice(0, -1)]
-
-          // 4. Animate the new top card rising in
           nextTick(() => {
             const newTop = slider.lastElementChild
             if (newTop) {
@@ -160,7 +177,6 @@ export default {
       })
     }
 
-    // ── Scroll UP: previous card comes back to top ─────────────
     function goBackward(toStep) {
       const slider = sliderRef.value
       if (!slider) return
@@ -168,23 +184,20 @@ export default {
       currentStep      = toStep
       activeStep.value = toStep
 
-      // 1. Rotate deckOrder backward: move first item to end (it becomes new top)
       const arr = deckOrder.value
       deckOrder.value = [...arr.slice(1), arr[0]]
 
-      // 2. Animate the restored top card dropping in from above
       nextTick(() => {
         const newTop = slider.lastElementChild
         if (newTop) {
           gsap.fromTo(newTop,
             { y: -30, opacity: 0 },
-            { y: 0, opacity: 1, duration: 0.45, ease: 'expo.out' }
+            { y: 0, opacity: 1, duration: 0.4, ease: 'expo.out' }
           )
         }
       })
     }
 
-    // Called by ScrollTrigger — only acts if cooldown has expired
     function tryStep(targetStep) {
       if (Date.now() < lockedUntil) return
       if (targetStep === currentStep) return
@@ -199,6 +212,28 @@ export default {
       }
     }
 
+    // ── Touch / swipe handlers ─────────────────────────────────
+    function onTouchStart(e) {
+      touchStartX = e.changedTouches[0].clientX
+      touchStartY = e.changedTouches[0].clientY
+    }
+
+    function onTouchEnd(e) {
+      const dx = e.changedTouches[0].clientX - touchStartX
+      const dy = e.changedTouches[0].clientY - touchStartY
+
+      // Only trigger if horizontal swipe is dominant and long enough
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+
+      if (dx < 0) {
+        // Swipe left → next card
+        tryStep(currentStep + 1)
+      } else {
+        // Swipe right → previous card
+        tryStep(currentStep - 1)
+      }
+    }
+
     function scrollToContact() {
       document.querySelector('#contact')?.scrollIntoView({ behavior: 'smooth' })
     }
@@ -207,7 +242,6 @@ export default {
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (reduced || !sectionRef.value) return
 
-      // Entrance fade-up for text elements
       gsap.from(sectionRef.value.querySelectorAll('.fade-up'), {
         y: 28, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'power2.out',
         scrollTrigger: {
@@ -217,33 +251,29 @@ export default {
         }
       })
 
-      // No pinning on mobile — cards just stack visually
-      if (window.innerWidth <= 767) return
+      // ── Desktop: GSAP pin + scroll-driven steps ────────────
+      if (window.innerWidth > 767) {
+        const N       = props.cards.length
+        const perCard = 800
+        const total   = N * perCard
 
-      const N       = props.cards.length
-      const perCard = 800   // px of scroll per card step
-      const total   = N * perCard
-
-      // Pin the inner layout while the section scrolls
-      // onUpdate maps scroll progress → card step
-      pinST = ScrollTrigger.create({
-        trigger:    sectionRef.value,
-        start:      'top top',
-        end:        `+=${total}`,
-        pin:        pinnedRef.value,
-        pinSpacing: true,
-        onUpdate(self) {
-          // progress 0→1 maps to steps 0→(N-1)
-          // Zone 0: 0.00 → 1/N  (card 1, no flip needed)
-          // Zone 1: 1/N  → 2/N  (flip to card 2)
-          // Zone 2: 2/N  → 3/N  (flip to card 3)  etc.
-          const target = Math.min(
-            Math.floor(self.progress * N),
-            N - 1
-          )
-          tryStep(target)
-        }
-      })
+        pinST = ScrollTrigger.create({
+          trigger:    sectionRef.value,
+          start:      'top top',
+          end:        `+=${total}`,
+          pin:        pinnedRef.value,
+          pinSpacing: true,
+          onUpdate(self) {
+            const target = Math.min(
+              Math.floor(self.progress * N),
+              N - 1
+            )
+            tryStep(target)
+          }
+        })
+      }
+      // Mobile: swipe is handled by touch events on the slider
+      // Prev/next buttons are shown via CSS (deck-mobile-controls)
     })
 
     onUnmounted(() => {
@@ -253,7 +283,8 @@ export default {
     return {
       sectionRef, pinnedRef, sliderRef,
       deckOrder, activeStep, cards: props.cards,
-      stackStyle, scrollToContact
+      stackStyle, scrollToContact,
+      tryStep, onTouchStart, onTouchEnd
     }
   }
 }

@@ -102,8 +102,8 @@ export default {
       },
       {
         id: 3,
-        src: 'https://images.unsplash.com/photo-1588776814546-1c4e4a4b31d8?auto=format&fit=crop&w=900&q=80',
-        alt: 'Dentist reviewing dental X-rays with a patient',
+        src: 'https://unsplash.com/photos/a-group-of-people-holding-a-white-object-in-their-hands-WFsNCIn8OF4',
+        alt: 'Candid',
         caption: 'Advanced digital diagnostics'
       },
       {

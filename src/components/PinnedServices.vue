@@ -43,7 +43,7 @@ export default {
         id: 's3',
         title: 'Orthodontics',
         desc: 'Clear aligners and traditional braces for children, teens, and adults. We straighten teeth discreetly and comfortably, with flexible payment plans to suit every budget.',
-        img: 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&w=800&q=80',
+        img: 'https://unsplash.com/photos/a-group-of-people-holding-a-white-object-in-their-hands-WFsNCIn8OF4',
         icon: `<svg viewBox="0 0 48 48" fill="none" width="28" height="28">
           <rect x="8" y="18" width="32" height="12" rx="6" fill="#fff" opacity="0.2" stroke="#fff" stroke-width="1.5"/>
           <circle cx="16" cy="24" r="3" fill="#fff" opacity="0.9"/>
@@ -53,7 +53,7 @@ export default {
       },
       {
         id: 's4',
-        title: 'Children\'s Dentistry',
+        title: 'Pediatric Dentistry',
         desc: 'Gentle, fun, and anxiety-free dental care designed specifically for children. We build positive habits early with check-ups, sealants, and fluoride treatments in a welcoming environment.',
         img: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=800&q=80',
         icon: `<svg viewBox="0 0 48 48" fill="none" width="28" height="28">
